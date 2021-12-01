@@ -6,6 +6,9 @@ import re
 import subprocess
 import sys
 import tempfile
+import tarfile
+import shutil
+
 from collections import namedtuple
 from collections import OrderedDict
 from operator import attrgetter
@@ -1130,6 +1133,7 @@ class Service:
             gzip=gzip,
             isolation=build_opts.get('isolation', self.options.get('isolation', None)),
             platform=self.platform,
+            followlinks=build_opts.get('followlinks', False),
             output_stream=output_stream)
 
     def get_cache_from(self, build_opts):
@@ -1797,8 +1801,11 @@ class _ClientBuilder:
               forcerm=False, dockerfile=None, container_limits=None,
               decode=False, buildargs=None, gzip=False, shmsize=None,
               labels=None, cache_from=None, target=None, network_mode=None,
-              squash=None, extra_hosts=None, platform=None, isolation=None,
+              squash=None, extra_hosts=None, platform=None, followlinks=False, isolation=None,
               use_config_proxy=True, output_stream=sys.stdout):
+        if followlinks:
+            raise NotImplementedError("followlinks implemented using docker CLI only")
+
         build_output = self.client.build(
             path=path,
             tag=tag,
@@ -1853,7 +1860,7 @@ class _CLIBuilder:
               forcerm=False, dockerfile=None, container_limits=None,
               decode=False, buildargs=None, gzip=False, shmsize=None,
               labels=None, cache_from=None, target=None, network_mode=None,
-              squash=None, extra_hosts=None, platform=None, isolation=None,
+              squash=None, extra_hosts=None, platform=None, followlinks=False, isolation=None,
               use_config_proxy=True, output_stream=sys.stdout):
         """
         Args:
@@ -1907,6 +1914,8 @@ class _CLIBuilder:
                 contains a proxy configuration, the corresponding environment
                 variables will be set in the container being built.
             output_stream (writer): stream to use for build logs
+            followlinks (bool): append context to tar and use it instead,
+                                allowing following links
         Returns:
             A generator for the build output.
         """
@@ -1937,6 +1946,21 @@ class _CLIBuilder:
             for host in extra_hosts:
                 command_builder.add_arg("--add-host", "{}".format(host))
 
+        if followlinks:
+            logging.debug('Building with following links')
+
+            # Create the compose tar
+            _, output_tar = tempfile.mkstemp(prefix='composetar-', suffix='.tar')
+            with tarfile.open(output_tar, 'w|', dereference=True) as tar:
+                tar.add(path, arcname='.')
+
+            # Extract the compose tar
+            tempdir = os.path.splitext(output_tar)[0]
+            with tarfile.open(output_tar) as tar:
+                tar.extractall(tempdir)
+
+            path = tempdir
+
         args = command_builder.build([path])
 
         with subprocess.Popen(args, stdout=output_stream, stderr=sys.stderr,
@@ -1949,6 +1973,10 @@ class _CLIBuilder:
             line = f.readline()
             image_id = line.split(":")[1].strip()
         os.remove(iidfile)
+
+        if followlinks:
+            os.remove(output_tar)
+            shutil.rmtree(tempdir, ignore_errors=True)
 
         return image_id
 

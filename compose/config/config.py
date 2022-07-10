@@ -1149,6 +1149,7 @@ def merge_build(output, base, override):
     md.merge_scalar('dockerfile')
     md.merge_scalar('network')
     md.merge_scalar('target')
+    md.merge_scalar('followlinks')
     md.merge_scalar('shm_size')
     md.merge_scalar('isolation')
     md.merge_mapping('args', parse_build_arguments)

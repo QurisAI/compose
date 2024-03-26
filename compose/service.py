@@ -209,18 +209,20 @@ class Service:
     def containers(self, stopped=False, one_off=False, filters=None, labels=None):
         if filters is None:
             filters = {}
-        filters.update({'label': self.labels(one_off=one_off) + (labels or [])})
+        filters.update({'label': self.labels(
+            one_off=one_off) + (labels or [])})
 
         result = list(filter(None, [
             Container.from_ps(self.client, container)
             for container in self.client.containers(
                 all=stopped,
                 filters=filters)])
-                      )
+        )
         if result:
             return result
 
-        filters.update({'label': self.labels(one_off=one_off, legacy=True) + (labels or [])})
+        filters.update({'label': self.labels(
+            one_off=one_off, legacy=True) + (labels or [])})
         return list(
             filter(
                 lambda c: c.has_legacy_proj_name(self.project), filter(None, [
@@ -238,7 +240,8 @@ class Service:
         for container in self.containers(labels=['{}={}'.format(LABEL_CONTAINER_NUMBER, number)]):
             return container
 
-        raise ValueError("No container found for {}_{}".format(self.name, number))
+        raise ValueError(
+            "No container found for {}_{}".format(self.name, number))
 
     def start(self, **options):
         containers = self.containers(stopped=True)
@@ -300,9 +303,11 @@ class Service:
                 for c in divergent_containers:
                     c.remove()
 
-                all_containers = list(set(all_containers) - set(divergent_containers))
+                all_containers = list(
+                    set(all_containers) - set(divergent_containers))
 
-            sorted_containers = sorted(all_containers, key=attrgetter('number'))
+            sorted_containers = sorted(
+                all_containers, key=attrgetter('number'))
             self._execute_convergence_start(
                 sorted_containers, desired_num, timeout, True, True
             )
@@ -374,13 +379,15 @@ class Service:
         try:
             return self.client.inspect_distribution(self.image_name)
         except APIError:
-            raise NoSuchImageError("Image '{}' not found".format(self.image_name))
+            raise NoSuchImageError(
+                "Image '{}' not found".format(self.image_name))
 
     def image(self):
         try:
             return self.client.inspect_image(self.image_name)
         except ImageNotFound:
-            raise NoSuchImageError("Image '{}' not found".format(self.image_name))
+            raise NoSuchImageError(
+                "Image '{}' not found".format(self.image_name))
 
     @property
     def image_name(self):
@@ -455,7 +462,8 @@ class Service:
 
         def create_and_start(service, n):
             if one_off:
-                container = service.create_container(one_off=True, quiet=True, **override_options)
+                container = service.create_container(
+                    one_off=True, quiet=True, **override_options)
             else:
                 container = service.create_container(number=n, quiet=True)
             if not detached:
@@ -522,7 +530,8 @@ class Service:
             stopped = [c for c in containers if not c.is_running]
             _, errors = parallel_execute(
                 stopped,
-                lambda c: self.start_container_if_stopped(c, attach_logs=not detached, quiet=True),
+                lambda c: self.start_container_if_stopped(
+                    c, attach_logs=not detached, quiet=True),
                 lambda c: c.name,
                 "Starting",
             )
@@ -648,7 +657,8 @@ class Service:
             expl = binarystr_to_unicode(ex.explanation)
             if "driver failed programming external connectivity" in expl:
                 log.warn("Host is already in use by another container")
-            raise OperationFailedError("Cannot start service {}: {}".format(self.name, expl))
+            raise OperationFailedError(
+                "Cannot start service {}: {}".format(self.name, expl))
         return container
 
     @property
@@ -667,9 +677,11 @@ class Service:
             if network in connected_networks:
                 if short_id_alias_exists(container, network):
                     continue
-                self.client.disconnect_container_from_network(container.id, network)
+                self.client.disconnect_container_from_network(
+                    container.id, network)
 
-            aliases = self._get_aliases(netdefs, container) if use_network_aliases else []
+            aliases = self._get_aliases(
+                netdefs, container) if use_network_aliases else []
 
             self.client.connect_container_to_network(
                 container.id, network,
@@ -730,12 +742,12 @@ class Service:
         pid_namespace = self.pid_mode.service_name
         ipc_namespace = self.ipc_mode.service_name
         return (
-                self.get_linked_service_names() +
-                self.get_volumes_from_names() +
-                ([net_name] if net_name else []) +
-                ([pid_namespace] if pid_namespace else []) +
-                ([ipc_namespace] if ipc_namespace else []) +
-                list(self.options.get('depends_on', {}).keys())
+            self.get_linked_service_names() +
+            self.get_volumes_from_names() +
+            ([net_name] if net_name else []) +
+            ([pid_namespace] if pid_namespace else []) +
+            ([ipc_namespace] if ipc_namespace else []) +
+            list(self.options.get('depends_on', {}).keys())
         )
 
     def get_dependency_configs(self):
@@ -879,7 +891,8 @@ class Service:
         container_options.update(override_options)
 
         if not container_options.get('name'):
-            container_options['name'] = self.get_container_name(self.name, number, slug)
+            container_options['name'] = self.get_container_name(
+                self.name, number, slug)
 
         container_options.setdefault('detach', True)
 
@@ -958,17 +971,21 @@ class Service:
             container_volumes = [
                 v for v in container_options.get('volumes') if isinstance(v, VolumeSpec)
             ]
-            container_mounts = [v for v in container_options.get('volumes') if isinstance(v, MountSpec)]
+            container_mounts = [v for v in container_options.get(
+                'volumes') if isinstance(v, MountSpec)]
 
         binds, affinity = merge_volume_bindings(
-            container_volumes, self.options.get('tmpfs') or [], previous_container,
+            container_volumes, self.options.get(
+                'tmpfs') or [], previous_container,
             container_mounts
         )
         container_options['environment'].update(affinity)
 
-        container_options['volumes'] = {v.internal: {} for v in container_volumes or {}}
+        container_options['volumes'] = {v.internal: {}
+                                        for v in container_volumes or {}}
         if version_gte(self.client.api_version, '1.30'):
-            override_options['mounts'] = [build_mount(v) for v in container_mounts] or None
+            override_options['mounts'] = [build_mount(
+                v) for v in container_mounts] or None
         else:
             # Workaround for 3.2 format
             override_options['tmpfs'] = self.options.get('tmpfs') or []
@@ -987,8 +1004,10 @@ class Service:
                     (v.target, {}) for v in secret_volumes
                 )
             else:
-                override_options['mounts'] = override_options.get('mounts') or []
-                override_options['mounts'].extend([build_mount(v) for v in secret_volumes])
+                override_options['mounts'] = override_options.get(
+                    'mounts') or []
+                override_options['mounts'].extend(
+                    [build_mount(v) for v in secret_volumes])
 
         # Remove possible duplicates (see e.g. https://github.com/docker/compose/issues/5885).
         # unique_everseen preserves order. (see https://github.com/docker/compose/issues/6091).
@@ -1080,7 +1099,8 @@ class Service:
         def build_spec(secret):
             target = secret['secret'].target
             if target is None:
-                target = '{}/{}'.format(const.SECRETS_PATH, secret['secret'].source)
+                target = '{}/{}'.format(const.SECRETS_PATH,
+                                        secret['secret'].source)
             elif not os.path.isabs(target):
                 target = '{}/{}'.format(const.SECRETS_PATH, target)
 
@@ -1110,7 +1130,8 @@ class Service:
                 'Impossible to perform platform-targeted builds for API version < 1.35'
             )
 
-        builder = _ClientBuilder(self.client) if not cli else _CLIBuilder(progress)
+        builder = _ClientBuilder(
+            self.client) if not cli else _CLIBuilder(progress)
         return builder.build(
             service=self,
             path=path,
@@ -1125,13 +1146,15 @@ class Service:
             buildargs=build_args,
             network_mode=build_opts.get('network', None),
             target=build_opts.get('target', None),
-            shmsize=parse_bytes(build_opts.get('shm_size')) if build_opts.get('shm_size') else None,
+            shmsize=parse_bytes(build_opts.get('shm_size')
+                                ) if build_opts.get('shm_size') else None,
             extra_hosts=build_opts.get('extra_hosts', None),
             container_limits={
                 'memory': parse_bytes(memory) if memory else None
             },
             gzip=gzip,
-            isolation=build_opts.get('isolation', self.options.get('isolation', None)),
+            isolation=build_opts.get(
+                'isolation', self.options.get('isolation', None)),
             platform=self.platform,
             followlinks=build_opts.get('followlinks', False),
             output_stream=output_stream)
@@ -1146,7 +1169,8 @@ class Service:
         return 'build' in self.options
 
     def labels(self, one_off=False, legacy=False):
-        proj_name = self.project if not legacy else re.sub(r'[_-]', '', self.project)
+        proj_name = self.project if not legacy else re.sub(
+            r'[_-]', '', self.project)
         return [
             '{}={}'.format(LABEL_PROJECT, proj_name),
             '{}={}'.format(LABEL_SERVICE, self.name),
@@ -1164,7 +1188,8 @@ class Service:
         container_name = build_container_name(
             self.project, service_name, number, slug,
         )
-        ext_links_origins = [link.split(':')[0] for link in self.options.get('external_links', [])]
+        ext_links_origins = [link.split(
+            ':')[0] for link in self.options.get('external_links', [])]
         if container_name in ext_links_origins:
             raise DependencyError(
                 'Service {} has a self-referential external link: {}'.format(
@@ -1242,14 +1267,16 @@ class Service:
             'platform': self.platform,
         }
         if not silent:
-            log.info('Pulling {} ({}{}{})...'.format(self.name, repo, separator, tag))
+            log.info('Pulling {} ({}{}{})...'.format(
+                self.name, repo, separator, tag))
 
         if kwargs['platform'] and version_lt(self.client.api_version, '1.35'):
             raise OperationFailedError(
                 'Impossible to perform platform-targeted pulls for API version < 1.35'
             )
 
-        event_stream = self._do_pull(repo, kwargs, silent, ignore_pull_failures)
+        event_stream = self._do_pull(
+            repo, kwargs, silent, ignore_pull_failures)
         if stream:
             return event_stream
         return progress_stream.get_digest_from_pull(event_stream)
@@ -1260,7 +1287,8 @@ class Service:
 
         repo, tag, separator = parse_repository_tag(self.options['image'])
         tag = tag or 'latest'
-        log.info('Pushing {} ({}{}{})...'.format(self.name, repo, separator, tag))
+        log.info('Pushing {} ({}{}{})...'.format(
+            self.name, repo, separator, tag))
         output = self.client.push(repo, tag=tag, stream=True)
 
         try:
@@ -1580,7 +1608,7 @@ def get_container_data_volumes(container, volumes_option, tmpfs_option, mounts_o
     image_volumes = [
         VolumeSpec.parse(volume)
         for volume in
-        container.image_config['ContainerConfig'].get('Volumes') or {}
+        container.image_config.get('ContainerConfig', {}).get('Volumes') or {}
     ]
 
     for volume in set(volumes_option + image_volumes):
@@ -1711,7 +1739,8 @@ def build_ulimits(ulimit_config):
     ulimits = []
     for limit_name, soft_hard_values in ulimit_config.items():
         if isinstance(soft_hard_values, int):
-            ulimits.append({'name': limit_name, 'soft': soft_hard_values, 'hard': soft_hard_values})
+            ulimits.append(
+                {'name': limit_name, 'soft': soft_hard_values, 'hard': soft_hard_values})
         elif isinstance(soft_hard_values, dict):
             ulimit_dict = {'name': limit_name}
             ulimit_dict.update(soft_hard_values)
@@ -1804,7 +1833,8 @@ class _ClientBuilder:
               squash=None, extra_hosts=None, platform=None, followlinks=False, isolation=None,
               use_config_proxy=True, output_stream=sys.stdout):
         if followlinks:
-            raise NotImplementedError("followlinks implemented using docker CLI only")
+            raise NotImplementedError(
+                "followlinks implemented using docker CLI only")
 
         build_output = self.client.build(
             path=path,
@@ -1840,7 +1870,8 @@ class _ClientBuilder:
 
         for event in all_events:
             if 'stream' in event:
-                match = re.search(r'Successfully built ([0-9a-f]+)', event.get('stream', ''))
+                match = re.search(
+                    r'Successfully built ([0-9a-f]+)', event.get('stream', ''))
                 if match:
                     image_id = match.group(1)
 
@@ -1942,7 +1973,8 @@ class _CLIBuilder:
 
         if extra_hosts:
             if isinstance(extra_hosts, dict):
-                extra_hosts = ["{}:{}".format(host, ip) for host, ip in extra_hosts.items()]
+                extra_hosts = ["{}:{}".format(host, ip)
+                               for host, ip in extra_hosts.items()]
             for host in extra_hosts:
                 command_builder.add_arg("--add-host", "{}".format(host))
 
@@ -1950,7 +1982,8 @@ class _CLIBuilder:
             logging.debug('Building with following links')
 
             # Create the compose tar
-            _, output_tar = tempfile.mkstemp(prefix='composetar-', suffix='.tar')
+            _, output_tar = tempfile.mkstemp(
+                prefix='composetar-', suffix='.tar')
             with tarfile.open(output_tar, 'w|', dereference=True) as tar:
                 tar.add(path, arcname='.')
 

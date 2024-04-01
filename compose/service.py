@@ -1984,7 +1984,7 @@ class _CLIBuilder:
             # Create the compose tar
             _, output_tar = tempfile.mkstemp(
                 prefix='composetar-', suffix='.tar')
-            with tarfile.open(output_tar, 'w|', dereference=True) as tar:
+            with tarfile.open(output_tar, 'w', dereference=True) as tar:
                 tar.add(path, arcname='.')
 
             # Extract the compose tar

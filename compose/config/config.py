@@ -350,7 +350,8 @@ def validate_config_version(config_files):
 
 
 def get_default_config_files(base_dir):
-    (candidates, path) = find_candidates_in_parent_dirs(SUPPORTED_FILENAMES, base_dir)
+    (candidates, path) = find_candidates_in_parent_dirs(
+        SUPPORTED_FILENAMES, base_dir)
 
     if not candidates:
         return None
@@ -358,7 +359,8 @@ def get_default_config_files(base_dir):
     winner = candidates[0]
 
     if len(candidates) > 1:
-        log.warning("Found multiple config files with supported names: %s", ", ".join(candidates))
+        log.warning(
+            "Found multiple config files with supported names: %s", ", ".join(candidates))
         log.warning("Using %s\n", winner)
 
     return [os.path.join(path, winner)] + get_default_override_file(path)
@@ -421,7 +423,8 @@ def load(config_details, interpolate=True):
     validate_config_version(config_details.config_files)
 
     processed_files = [
-        process_config_file(config_file, config_details.environment, interpolate=interpolate)
+        process_config_file(
+            config_file, config_details.environment, interpolate=interpolate)
         for config_file in config_details.config_files
     ]
     config_details = config_details._replace(config_files=processed_files)
@@ -439,7 +442,8 @@ def load(config_details, interpolate=True):
     configs = load_mapping(
         config_details.config_files, 'get_configs', 'Config', config_details.working_dir
     )
-    service_dicts = load_services(config_details, main_file, interpolate=interpolate)
+    service_dicts = load_services(
+        config_details, main_file, interpolate=interpolate)
 
     if main_file.version != V1:
         for service_dict in service_dicts:
@@ -462,7 +466,8 @@ def load_mapping(config_files, get_func, entity_type, working_dir=None):
 
             external = config.get('external')
             if external:
-                validate_external(entity_type, name, config, config_file.version)
+                validate_external(entity_type, name, config,
+                                  config_file.version)
                 if isinstance(external, dict):
                     config['name'] = external.get('name')
                 elif not config.get('name'):
@@ -653,7 +658,8 @@ class ServiceExtendsResolver:
         self.detect_cycle()
 
         if 'extends' in self.service_config.config:
-            service_dict = self.resolve_extends(*self.validate_and_construct_extends())
+            service_dict = self.resolve_extends(
+                *self.validate_and_construct_extends())
             return self.service_config._replace(config=service_dict)
 
         return self.service_config
@@ -741,7 +747,8 @@ def resolve_build_args(buildargs, environment):
 
 
 def validate_extended_service_dict(service_dict, filename, service):
-    error_prefix = "Cannot extend service '{}' in {}:".format(service, filename)
+    error_prefix = "Cannot extend service '{}' in {}:".format(
+        service, filename)
 
     if 'links' in service_dict:
         raise ConfigurationError(
@@ -816,10 +823,12 @@ def process_service(service_config):
         process_build_section(service_dict, working_dir)
 
     if 'volumes' in service_dict and service_dict.get('volume_driver') is None:
-        service_dict['volumes'] = resolve_volume_paths(working_dir, service_dict)
+        service_dict['volumes'] = resolve_volume_paths(
+            working_dir, service_dict)
 
     if 'sysctls' in service_dict:
-        service_dict['sysctls'] = build_string_dict(parse_sysctls(service_dict['sysctls']))
+        service_dict['sysctls'] = build_string_dict(
+            parse_sysctls(service_dict['sysctls']))
 
     if 'labels' in service_dict:
         service_dict['labels'] = parse_labels(service_dict['labels'])
@@ -839,13 +848,16 @@ def process_service(service_config):
 
 def process_build_section(service_dict, working_dir):
     if isinstance(service_dict['build'], str):
-        service_dict['build'] = resolve_build_path(working_dir, service_dict['build'])
+        service_dict['build'] = resolve_build_path(
+            working_dir, service_dict['build'])
     elif isinstance(service_dict['build'], dict):
         if 'context' in service_dict['build']:
             path = service_dict['build']['context']
-            service_dict['build']['context'] = resolve_build_path(working_dir, path)
+            service_dict['build']['context'] = resolve_build_path(
+                working_dir, path)
         if 'labels' in service_dict['build']:
-            service_dict['build']['labels'] = parse_labels(service_dict['build']['labels'])
+            service_dict['build']['labels'] = parse_labels(
+                service_dict['build']['labels'])
 
 
 def process_ports(service_dict):
@@ -880,7 +892,8 @@ def process_blkio_config(service_dict):
                 rate = v.get('rate', 0)
                 v['rate'] = parse_bytes(rate)
                 if v['rate'] is None:
-                    raise ConfigurationError('Invalid format for bytes value: "{}"'.format(rate))
+                    raise ConfigurationError(
+                        'Invalid format for bytes value: "{}"'.format(rate))
 
     for field in ['device_read_iops', 'device_write_iops']:
         if field in service_dict['blkio_config']:
@@ -889,7 +902,8 @@ def process_blkio_config(service_dict):
                     v['rate'] = int(v.get('rate', 0))
                 except ValueError:
                     raise ConfigurationError(
-                        'Invalid IOPS value: "{}". Must be a positive integer.'.format(v.get('rate'))
+                        'Invalid IOPS value: "{}". Must be a positive integer.'.format(
+                            v.get('rate'))
                     )
 
     return service_dict
@@ -920,12 +934,15 @@ def finalize_service_volumes(service_dict, environment):
         win_host = environment.get_boolean('COMPOSE_FORCE_WINDOWS_HOST')
         for v in service_dict['volumes']:
             if isinstance(v, dict):
-                finalized_volumes.append(MountSpec.parse(v, normalize, win_host))
+                finalized_volumes.append(
+                    MountSpec.parse(v, normalize, win_host))
             else:
-                finalized_volumes.append(VolumeSpec.parse(v, normalize, win_host))
+                finalized_volumes.append(
+                    VolumeSpec.parse(v, normalize, win_host))
 
         duplicate_mounts = []
-        mounts = [v.as_volume_spec() if isinstance(v, MountSpec) else v for v in finalized_volumes]
+        mounts = [v.as_volume_spec() if isinstance(v, MountSpec)
+                  else v for v in finalized_volumes]
         for mount in mounts:
             if list(map(attrgetter('internal'), mounts)).count(mount.internal) > 1:
                 duplicate_mounts.append(mount.repr())
@@ -944,7 +961,8 @@ def finalize_service(service_config, service_names, version, environment,
     service_dict = dict(service_config.config)
 
     if 'environment' in service_dict or 'env_file' in service_dict:
-        service_dict['environment'] = resolve_environment(service_dict, environment, interpolate)
+        service_dict['environment'] = resolve_environment(
+            service_dict, environment, interpolate)
         service_dict.pop('env_file', None)
 
     if 'volumes_from' in service_dict:
@@ -1111,7 +1129,15 @@ def merge_service_dicts(base, override, version):
 def merge_unique_items_lists(base, override):
     override = (str(o) for o in override)
     base = (str(b) for b in base)
-    return sorted(set(chain(base, override)))
+    # return sorted(set(chain(base, override)))
+
+    seen = set()
+    result = []
+    for item in chain(base, override):
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
 
 
 def merge_healthchecks(base, override):
@@ -1134,7 +1160,8 @@ def merge_ports(md, base, override):
 
     merged = parse_sequence_func(md.base.get(field, []))
     merged.update(parse_sequence_func(md.override.get(field, [])))
-    md[field] = [item for item in sorted(merged.values(), key=attrgetter("target"))]
+    md[field] = [item for item in sorted(
+        merged.values(), key=attrgetter("target"))]
 
 
 def merge_build(output, base, override):
@@ -1169,15 +1196,20 @@ def merge_deploy(base, override):
     md.merge_mapping('rollback_config')
     md.merge_mapping('restart_policy')
     if md.needs_merge('resources'):
-        resources_md = MergeDict(md.base.get('resources') or {}, md.override.get('resources') or {})
+        resources_md = MergeDict(md.base.get(
+            'resources') or {}, md.override.get('resources') or {})
         resources_md.merge_mapping('limits')
-        resources_md.merge_field('reservations', merge_reservations, default={})
+        resources_md.merge_field(
+            'reservations', merge_reservations, default={})
         md['resources'] = dict(resources_md)
     if md.needs_merge('placement'):
-        placement_md = MergeDict(md.base.get('placement') or {}, md.override.get('placement') or {})
+        placement_md = MergeDict(md.base.get(
+            'placement') or {}, md.override.get('placement') or {})
         placement_md.merge_scalar('max_replicas_per_node')
-        placement_md.merge_field('constraints', merge_unique_items_lists, default=[])
-        placement_md.merge_field('preferences', merge_unique_objects_lists, default=[])
+        placement_md.merge_field(
+            'constraints', merge_unique_items_lists, default=[])
+        placement_md.merge_field(
+            'preferences', merge_unique_objects_lists, default=[])
         md['placement'] = dict(placement_md)
 
     return dict(md)
@@ -1187,9 +1219,11 @@ def merge_networks(base, override):
     merged_networks = {}
     all_network_names = set(base) | set(override)
     base = {k: {} for k in base} if isinstance(base, list) else base
-    override = {k: {} for k in override} if isinstance(override, list) else override
+    override = {k: {} for k in override} if isinstance(
+        override, list) else override
     for network_name in all_network_names:
-        md = MergeDict(base.get(network_name) or {}, override.get(network_name) or {})
+        md = MergeDict(base.get(network_name) or {},
+                       override.get(network_name) or {})
         md.merge_field('aliases', merge_unique_items_lists, [])
         md.merge_field('link_local_ips', merge_unique_items_lists, [])
         md.merge_scalar('priority')
@@ -1291,13 +1325,17 @@ def parse_dict_or_list(split_func, type_name, arguments):
     )
 
 
-parse_build_arguments = functools.partial(parse_dict_or_list, split_env, 'build arguments')
-parse_environment = functools.partial(parse_dict_or_list, split_env, 'environment')
+parse_build_arguments = functools.partial(
+    parse_dict_or_list, split_env, 'build arguments')
+parse_environment = functools.partial(
+    parse_dict_or_list, split_env, 'environment')
 parse_labels = functools.partial(parse_dict_or_list, split_kv, 'labels')
-parse_networks = functools.partial(parse_dict_or_list, lambda k: (k, None), 'networks')
+parse_networks = functools.partial(
+    parse_dict_or_list, lambda k: (k, None), 'networks')
 parse_sysctls = functools.partial(parse_dict_or_list, split_kv, 'sysctls')
 parse_depends_on = functools.partial(
-    parse_dict_or_list, lambda k: (k, {'condition': 'service_started'}), 'depends_on'
+    parse_dict_or_list, lambda k: (
+        k, {'condition': 'service_started'}), 'depends_on'
 )
 
 
